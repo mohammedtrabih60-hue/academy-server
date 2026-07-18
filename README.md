@@ -62,6 +62,11 @@ git push -u origin main
 | POST | `/api/users` | إنشاء مستخدم (مدير/إدمن بس) |
 | PATCH | `/api/users/:id` | تعديل مستخدم |
 | DELETE | `/api/users/:id` | حذف مستخدم (مدير/إدمن بس) |
+| GET | `/api/schools` | قائمة المؤسسات (جامعات/مدارس) |
+| GET | `/api/schools/:id` | مؤسسة وحدة |
+| POST | `/api/schools` | إضافة مؤسسة جديدة (הנהלה/إدمن بس) |
+| PATCH | `/api/schools/:id` | تعديل مؤسسة |
+| DELETE | `/api/schools/:id` | حذف مؤسسة (הנהלה/إدمن بس) |
 
 ## الخطوة الجاية
 
