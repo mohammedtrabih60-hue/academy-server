@@ -23,15 +23,16 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // ── ROUTES ───────────────────────────────────────────────────────────────
 // Starting point: auth + users only. Add more app.use(...) lines here as
 // new sections get built (schools, classes, grades, etc.)
-app.use('/api/auth',    require('./src/routes/auth'));
-app.use('/api/users',   require('./src/routes/users'));
-app.use('/api/schools', require('./src/routes/schools'));
+app.use('/api/auth',                 require('./src/routes/auth'));
+app.use('/api/users',                require('./src/routes/users'));
+app.use('/api/schools',              require('./src/routes/schools'));
+app.use('/api/registration-requests', require('./src/routes/registration_requests'));
 
 // ── HEALTH ───────────────────────────────────────────────────────────────
 app.get('/health', (_, res) => res.json({
   status: 'ok',
   server: 'Academy — starting point',
-  routes: ['auth', 'users', 'schools'],
+  routes: ['auth', 'users', 'schools', 'registration-requests'],
   time: new Date().toISOString(),
 }));
 

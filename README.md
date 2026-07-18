@@ -67,6 +67,10 @@ git push -u origin main
 | POST | `/api/schools` | إضافة مؤسسة جديدة (הנהלה/إدمن بس) |
 | PATCH | `/api/schools/:id` | تعديل مؤسسة |
 | DELETE | `/api/schools/:id` | حذف مؤسسة (הנהלה/إدمن بس) |
+| POST | `/api/registration-requests` | معلم بيسجل طالب — بيصير "بانتظار الموافقة" |
+| GET | `/api/registration-requests` | قائمة الطلبات (مدير/إدمن بس) |
+| PATCH | `/api/registration-requests/:id/approve` | الموافقة — بينشئ حساب الطالب فعلياً |
+| PATCH | `/api/registration-requests/:id/reject` | الرفض |
 
 ## الخطوة الجاية
 
