@@ -71,6 +71,67 @@ git push -u origin main
 | GET | `/api/registration-requests` | قائمة الطلبات (مدير/إدمن بس) |
 | PATCH | `/api/registration-requests/:id/approve` | الموافقة — بينشئ حساب الطالب فعلياً |
 | PATCH | `/api/registration-requests/:id/reject` | الرفض |
+| GET | `/api/classes` | قائمة الصفوف (بمدرسة المستخدم) |
+| POST | `/api/classes` | إنشاء صف (مدير/إدمن) |
+| PATCH | `/api/classes/:id` | تعديل اسم/صف/مربي |
+| DELETE | `/api/classes/:id` | حذف صف |
+| POST | `/api/classes/:id/assign-student` | إضافة طالب للصف (وينقله من صف تاني تلقائياً) |
+| POST | `/api/classes/:id/remove-student` | إزالة طالب من الصف |
+| POST | `/api/classes/:id/assign-teacher` | إضافة معلم للصف |
+| POST | `/api/classes/:id/remove-teacher` | إزالة معلم من الصف |
+| GET | `/api/schedule` | جدول الحصص (بمدرسة/صف) |
+| POST | `/api/schedule` | إضافة حصة (مدير/معلم) |
+| PATCH | `/api/schedule/:id` | تعديل حصة |
+| DELETE | `/api/schedule/:id` | حذف حصة |
+| GET | `/api/courses` | قائمة الكورسات |
+| POST | `/api/courses` | إنشاء كورس (معلم/مدير) |
+| PATCH | `/api/courses/:id` | تعديل كورس |
+| POST | `/api/courses/:id/materials` | إضافة محتوى (فيديو/PDF/رابط) |
+| DELETE | `/api/courses/:id` | حذف كورس |
+| GET | `/api/assignments` | قائمة الواجبات |
+| POST | `/api/assignments` | إنشاء واجب (معلم/مدير) |
+| PATCH | `/api/assignments/:id` | تعديل واجب |
+| DELETE | `/api/assignments/:id` | حذف واجب |
+| POST | `/api/assignments/:id/submit` | تسليم الواجب (طالب) |
+| POST | `/api/assignments/:id/grade` | تصحيح تسليم طالب |
+| GET | `/api/grades` | العلامات (الطالب يشوف بس علاماته هو) |
+| POST | `/api/grades` | إدخال علامة (معلم/مدير) |
+| PATCH | `/api/grades/:id` | تعديل علامة |
+| DELETE | `/api/grades/:id` | حذف علامة |
+| GET | `/api/homeroom-requests` | פניות (الطالب يشوف بس تبعاته، المعلم يشوف الموجهة إله) |
+| POST | `/api/homeroom-requests` | الطالب يبعت פנייה للمربي |
+| PATCH | `/api/homeroom-requests/:id/reply` | المربي يرد |
+| PATCH | `/api/homeroom-requests/:id/forward` | تحويل الطلب لمعلم تاني |
+| GET | `/api/permission-requests` | أישורים (إعادة امتحان، نسيان كلمة سر، استئذان، غياب، تأخير) |
+| POST | `/api/permission-requests` | الطالب يبعت طلب |
+| PATCH | `/api/permission-requests/:id/accept` | قبول |
+| PATCH | `/api/permission-requests/:id/reject` | رفض |
+| GET | `/api/career-guidance` | طلبات التوجيه المهني |
+| POST | `/api/career-guidance` | الطالب يبعت طلب |
+| PATCH | `/api/career-guidance/:id/respond` | رد + تحديد موعد (اختياري) |
+
+## Realtime — צ'אט כיתתי (Socket.io)
+
+هاد مش REST — بيتصل عن طريق WebSocket على نفس السيرفر (نفس الـ JWT).
+
+**الاتصال:** `io(rootUrl, { auth: { token }, transports: ['websocket'] })`
+
+| Event (client → server) | الوصف |
+|---|---|
+| `join_class` (classId) | الانضمام لصف — بيرجع `chat_history` |
+| `send_message` `{classId, text, type, fileUrl}` | إرسال رسالة |
+| `toggle_chat` `{classId, isOpen}` | فتح/إغلاق الشات (معلم/مدير بس) |
+| `delete_message` `{classId, messageId}` | حذف رسالة (معلم/مدير بس) |
+| `pin_message` `{classId, messageId, pinned}` | تثبيت إعلان (معلم/مدير بس) |
+| `mute_student` `{classId, studentId, muted}` | كتم طالب (معلم/مدير بس) |
+| `block_student` `{classId, studentId, blocked}` | حظر طالب (معلم/مدير بس) |
+
+| Event (server → client) | الوصف |
+|---|---|
+| `chat_history` | `{classId, messages[], settings}` عند الانضمام |
+| `new_message` | رسالة جديدة |
+| `chat_toggled` / `message_deleted` / `message_pinned` / `student_muted` / `student_blocked` | تحديثات حية |
+| `chat_error` | `{message}` |
 
 ## الخطوة الجاية
 
