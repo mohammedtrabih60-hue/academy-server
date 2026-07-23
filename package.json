@@ -1,7 +1,7 @@
 {
-  "name": "academy-server",
-  "version": "1.0.0",
-  "description": "Academy - Server (starting point: auth + users)",
+  "name": "tarabix-academy-server",
+  "version": "3.0.0",
+  "description": "Custom auth + write server for the Tarabix Academy Flutter app (Firestore handles realtime reads directly)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -17,7 +17,6 @@
     "firebase-admin": "^12.0.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "socket.io": "^4.7.5",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

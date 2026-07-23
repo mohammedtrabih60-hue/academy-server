@@ -1,149 +1,99 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const role = require('../middleware/role');
 const { db } = require('../config/firebase');
 const { uuid, now, ok, err, serverErr } = require('../utils/helpers');
 
-// GET /api/classes — list classes in the caller's school
-router.get('/', auth, async (req, res) => {
+// POST /classes — body: { name }
+router.post('/', auth, async (req, res) => {
   try {
-    let q = db().collection('classes');
-    if (req.schoolId) q = q.where('schoolId', '==', req.schoolId);
-    const snap = await q.orderBy('createdAt', 'desc').get();
-    ok(res, snap.docs.map(d => d.data()));
-  } catch (e) { serverErr(res, e); }
-});
-
-// GET /api/classes/:id
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const doc = await db().collection('classes').doc(req.params.id).get();
-    if (!doc.exists) return err(res, 'not_found', 'Class not found', 404);
-    ok(res, doc.data());
-  } catch (e) { serverErr(res, e); }
-});
-
-// POST /api/classes — create a class (director/admin only)
-// body: { name, grade }
-router.post('/', auth, role('director', 'admin'), async (req, res) => {
-  try {
-    const { name, grade } = req.body;
+    const { name } = req.body;
     if (!name) return err(res, 'missing_fields', 'name required');
 
     const id = uuid();
-    const classDoc = {
+    const schoolClass = {
       id,
       name: name.trim(),
-      grade: grade || null,
       schoolId: req.schoolId || null,
-      homeroomTeacherId: null,
-      studentIds: [],
-      teacherIds: [],
       createdAt: now(),
-      createdBy: req.userId,
+      homeroomTeacherId: null,
+      homeroomTeacherName: null,
+      homeroomTeacherPhoto: null,
+      homeroomTeacherPhone: null,
     };
-    await db().collection('classes').doc(id).set(classDoc);
-    ok(res, classDoc, 201);
+    await db().collection('classes').doc(id).set(schoolClass);
+    ok(res, schoolClass, 201);
   } catch (e) { serverErr(res, e); }
 });
 
-// PATCH /api/classes/:id — rename / change grade / set homeroom teacher
-router.patch('/:id', auth, role('director', 'admin'), async (req, res) => {
-  try {
-    const updates = {};
-    if (req.body.name !== undefined) updates.name = req.body.name;
-    if (req.body.grade !== undefined) updates.grade = req.body.grade;
-    if (req.body.homeroomTeacherId !== undefined) updates.homeroomTeacherId = req.body.homeroomTeacherId;
-    await db().collection('classes').doc(req.params.id).update(updates);
-    ok(res, { id: req.params.id });
-  } catch (e) { serverErr(res, e); }
-});
-
-// DELETE /api/classes/:id
-router.delete('/:id', auth, role('director', 'admin'), async (req, res) => {
+// DELETE /classes/:id
+router.delete('/:id', auth, async (req, res) => {
   try {
     await db().collection('classes').doc(req.params.id).delete();
     ok(res, { deleted: req.params.id });
   } catch (e) { serverErr(res, e); }
 });
 
-// POST /api/classes/:id/assign-student — body: { studentId }
-// Also removes the student from any other class in the same school first,
-// so a student only ever belongs to one class at a time.
-router.post('/:id/assign-student', auth, role('director', 'admin'), async (req, res) => {
+// PATCH /classes/:id/homeroom — body: { teacherId, teacherName }
+router.patch('/:id/homeroom', auth, async (req, res) => {
   try {
-    const { studentId } = req.body;
-    if (!studentId) return err(res, 'missing_fields', 'studentId required');
-
+    const { teacherId, teacherName } = req.body;
     const d = db();
-    const targetRef = d.collection('classes').doc(req.params.id);
-    const targetDoc = await targetRef.get();
-    if (!targetDoc.exists) return err(res, 'not_found', 'Class not found', 404);
 
-    let q = d.collection('classes').where('studentIds', 'array-contains', studentId);
-    if (req.schoolId) q = q.where('schoolId', '==', req.schoolId);
-    const others = await q.get();
-    for (const doc of others.docs) {
-      if (doc.id !== req.params.id) {
-        const ids = (doc.data().studentIds || []).filter(sid => sid !== studentId);
-        await doc.ref.update({ studentIds: ids });
+    let photo = null;
+    let phone = null;
+    if (teacherId) {
+      const teacherDoc = await d.collection('teacher_accounts').doc(teacherId).get();
+      if (teacherDoc.exists) {
+        photo = teacherDoc.data().profileImageBase64 || null;
+        phone = teacherDoc.data().phone || null;
       }
     }
 
-    const currentIds = targetDoc.data().studentIds || [];
-    if (!currentIds.includes(studentId)) currentIds.push(studentId);
-    await targetRef.update({ studentIds: currentIds });
-
-    ok(res, { classId: req.params.id, studentId });
+    await d.collection('classes').doc(req.params.id).update({
+      homeroomTeacherId: teacherId || null,
+      homeroomTeacherName: teacherName || null,
+      homeroomTeacherPhoto: photo,
+      homeroomTeacherPhone: phone,
+    });
+    ok(res, { id: req.params.id });
   } catch (e) { serverErr(res, e); }
 });
 
-// POST /api/classes/:id/remove-student — body: { studentId }
-router.post('/:id/remove-student', auth, role('director', 'admin'), async (req, res) => {
+// POST /classes/improvement-request
+// Stored as a Faniya-shaped doc (matches how the app's own
+// improvement_requests_screen.dart filters the faniyot collection by subject).
+// body: { subject, currentUnits, targetUnits, studentId, studentName, classId, schoolId }
+router.post('/improvement-request', auth, async (req, res) => {
   try {
-    const { studentId } = req.body;
-    if (!studentId) return err(res, 'missing_fields', 'studentId required');
+    const { subject, currentUnits, targetUnits, studentId, studentName, classId, schoolId } = req.body;
+    if (!subject || !studentId) return err(res, 'missing_fields', 'subject, studentId required');
 
-    const ref = db().collection('classes').doc(req.params.id);
-    const doc = await ref.get();
-    if (!doc.exists) return err(res, 'not_found', 'Class not found', 404);
-
-    const ids = (doc.data().studentIds || []).filter(sid => sid !== studentId);
-    await ref.update({ studentIds: ids });
-    ok(res, { classId: req.params.id, studentId });
-  } catch (e) { serverErr(res, e); }
-});
-
-// POST /api/classes/:id/assign-teacher — body: { teacherId }
-router.post('/:id/assign-teacher', auth, role('director', 'admin'), async (req, res) => {
-  try {
-    const { teacherId } = req.body;
-    if (!teacherId) return err(res, 'missing_fields', 'teacherId required');
-
-    const ref = db().collection('classes').doc(req.params.id);
-    const doc = await ref.get();
-    if (!doc.exists) return err(res, 'not_found', 'Class not found', 404);
-
-    const ids = doc.data().teacherIds || [];
-    if (!ids.includes(teacherId)) ids.push(teacherId);
-    await ref.update({ teacherIds: ids });
-    ok(res, { classId: req.params.id, teacherId });
-  } catch (e) { serverErr(res, e); }
-});
-
-// POST /api/classes/:id/remove-teacher — body: { teacherId }
-router.post('/:id/remove-teacher', auth, role('director', 'admin'), async (req, res) => {
-  try {
-    const { teacherId } = req.body;
-    if (!teacherId) return err(res, 'missing_fields', 'teacherId required');
-
-    const ref = db().collection('classes').doc(req.params.id);
-    const doc = await ref.get();
-    if (!doc.exists) return err(res, 'not_found', 'Class not found', 404);
-
-    const ids = (doc.data().teacherIds || []).filter(tid => tid !== teacherId);
-    await ref.update({ teacherIds: ids });
-    ok(res, { classId: req.params.id, teacherId });
+    const id = uuid();
+    const nowIso = now();
+    const faniya = {
+      id,
+      studentId,
+      studentName: studentName || '',
+      schoolId: schoolId || req.schoolId || null,
+      classId: classId || null,
+      subject: `בקשת שיפור יחידות - ${subject}`,
+      status: 'open',
+      messages: [{
+        id: uuid(),
+        senderId: studentId,
+        senderName: studentName || '',
+        isTeacher: false,
+        text: `בקשה לשיפור יחידות ב${subject}: מ-${currentUnits} ל-${targetUnits} יחידות`,
+        mediaType: 'none',
+        sentAt: nowIso,
+      }],
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      transferredToTeacherId: null,
+      transferredToTeacherName: null,
+    };
+    await db().collection('faniyot').doc(id).set(faniya);
+    ok(res, faniya, 201);
   } catch (e) { serverErr(res, e); }
 });
 
